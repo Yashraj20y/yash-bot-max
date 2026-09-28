@@ -427,4 +427,4 @@ if __name__ == '__main__':
     print(f"🔁 Retry: 3 attempts per host")
     print(f"🌐 Dashboard: http://localhost:{PORT}")
     print("=" * 60)
-    app.run(host='0.0.0.0', port=PORT, debug=False)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', PORT)), debug=False)
