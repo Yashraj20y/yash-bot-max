@@ -1,7 +1,6 @@
 """
-QUOTEX BOT PRO - API-QUOTEX (Playwright SSID)
+QUOTEX BOT PRO - API-QUOTEX (Playwright SSID - Real + Demo)
 Run: python yash_V12_bot.py
-Access: http://localhost:7771
 """
 
 import os
@@ -138,38 +137,61 @@ class Bot:
         print("🔗 Fetching SSID via Playwright (Cloudflare bypass)...")
 
         try:
-            ssid_info = loop.run(get_ssid(email=email, password=password), timeout=120)
+            ssid_info = loop.run(get_ssid(email=email, password=password), timeout=180)
             if not ssid_info:
-                self.last_error = "SSID fetch failed"
+                self.last_error = "SSID fetch failed (browser timeout or login failed)"
                 return False
 
-           real_ssid = ssid_info.get("real") if isinstance(ssid_info, dict) else None
-demo_ssid = ssid_info.get("demo") if isinstance(ssid_info, dict) else None
-ssid = real_ssid or demo_ssid
-if not ssid:
-    self.last_error = "No SSID returned (real or demo)"
-    return False
-is_demo = ssid == demo_ssid
+            print(f"📋 SSID info keys: {list(ssid_info.keys()) if isinstance(ssid_info, dict) else 'not a dict'}")
 
-print(f"✅ SSID obtained ({'demo' if is_demo else 'real'}). Connecting to WebSocket...")
+            # ============================================================
+            # FIX: Real SSID pehle try karo, phir Demo
+            # ============================================================
+            ssid = None
+            is_demo = True
 
-self.client = AsyncQuotexClient(ssid=ssid, is_demo=is_demo)
+            if isinstance(ssid_info, dict):
+                # Real SSID pehle
+                if ssid_info.get("real"):
+                    ssid = ssid_info["real"]
+                    is_demo = False
+                    print("✅ Using REAL SSID")
+                # Phir demo
+                elif ssid_info.get("demo"):
+                    ssid = ssid_info["demo"]
+                    is_demo = True
+                    print("✅ Using DEMO SSID")
+                # Agar tuple mila toh
+                elif len(ssid_info) == 2:
+                    ssid, is_demo = ssid_info
+                    print(f"✅ Using SSID (tuple) is_demo={is_demo}")
+
+            if not ssid:
+                self.last_error = f"No SSID returned. Keys: {list(ssid_info.keys()) if isinstance(ssid_info, dict) else ssid_info}"
+                print(f"❌ {self.last_error}")
+                return False
+
+            print(f"✅ SSID obtained. Connecting to WebSocket (demo={is_demo})...")
+
+            self.client = AsyncQuotexClient(ssid=ssid, is_demo=is_demo)
             ok = loop.run(self.client.connect(), timeout=30)
 
             if ok:
                 self.connected = True
                 self.last_error = None
-                print("✅ Connected via API-Quotex (demo)")
+                print(f"✅ Connected via API-Quotex (demo={is_demo})")
 
                 try:
                     assets = loop.run(self.client.get_assets(), timeout=15)
                     if assets:
                         self._cache_real_codes(assets)
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"⚠️ get_assets error: {e}")
+
                 return True
             else:
                 self.last_error = "WebSocket connect failed"
+                print(f"❌ {self.last_error}")
                 return False
         except Exception as e:
             self.last_error = str(e)
@@ -428,7 +450,7 @@ fetch('/api/assets').then(r=>r.json()).then(a=>{
   document.getElementById('asset').innerHTML = a.map(x=>`<option value="${x.id}">${x.name}</option>`).join('');
 });
 async function connect(){
-  document.getElementById('status').textContent = '⏳ Connecting (Playwright browser khul sakta hai, 60 sec wait)...';
+  document.getElementById('status').textContent = '⏳ Connecting (browser khul sakta hai, 60-90 sec wait)...';
   const r = await fetch('/api/connect',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({email:document.getElementById('email').value,password:document.getElementById('password').value})});
   const d = await r.json();
@@ -451,7 +473,7 @@ async function generate(){
 # ============================================================
 if __name__ == '__main__':
     print("=" * 60)
-    print("🚀 QUOTEX BOT PRO - API-QUOTEX (Playwright)")
+    print("🚀 QUOTEX BOT PRO - API-QUOTEX (Real + Demo)")
     print("=" * 60)
     print(f"📊 Total Assets: {len(bot.assets)}")
     print(f"📊 API-Quotex: {'✅ Available' if API_QUOTEX else '❌ Not installed'}")
