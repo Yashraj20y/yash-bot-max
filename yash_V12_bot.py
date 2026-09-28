@@ -143,14 +143,17 @@ class Bot:
                 self.last_error = "SSID fetch failed"
                 return False
 
-            demo_ssid = ssid_info.get("demo") if isinstance(ssid_info, dict) else None
-            if not demo_ssid:
-                self.last_error = "No demo SSID returned"
-                return False
+           real_ssid = ssid_info.get("real") if isinstance(ssid_info, dict) else None
+demo_ssid = ssid_info.get("demo") if isinstance(ssid_info, dict) else None
+ssid = real_ssid or demo_ssid
+if not ssid:
+    self.last_error = "No SSID returned (real or demo)"
+    return False
+is_demo = ssid == demo_ssid
 
-            print("✅ SSID obtained. Connecting to WebSocket...")
+print(f"✅ SSID obtained ({'demo' if is_demo else 'real'}). Connecting to WebSocket...")
 
-            self.client = AsyncQuotexClient(ssid=demo_ssid, is_demo=True)
+self.client = AsyncQuotexClient(ssid=ssid, is_demo=is_demo)
             ok = loop.run(self.client.connect(), timeout=30)
 
             if ok:
